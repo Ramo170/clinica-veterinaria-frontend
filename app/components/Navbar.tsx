@@ -7,9 +7,9 @@ export default function Navbar() {
                 <span className="text-xl font-bold text-blue-500">PetClinic</span>
                 <div className="flex gap-6 font-medium text-gray-300">
                     <Link href="/" className="hover:text-blue-400 transition-colors">Clínicas</Link>
-                    <Link href="/" className="hover:text-blue-400 transition-colors">Tutores</Link>
-                    <Link href="/" className="hover:text-blue-400 transition-colors">Pacientes</Link>
-                    <Link href="/" className="hover:text-blue-400 transition-colors">Veterinarios</Link>
+                    <Link href="/pacientes" className="hover:text-blue-400 transition-colors">Tutores</Link>
+                    <Link href="/tutores" className="hover:text-blue-400 transition-colors">Pacientes</Link>
+                    <Link href="/veterinarios" className="hover:text-blue-400 transition-colors">Veterinarios</Link>
                 </div>
             </div>
         </nav>
