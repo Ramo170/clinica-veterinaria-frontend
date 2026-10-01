@@ -3,104 +3,125 @@
 import { useEffect, useState, useCallback } from "react";
 import { fetchApi } from "@/src/services/api";
 
+interface Veterinario {
+  id: number;
+  nome: string;
+  crmv: string;
+  especialidade: string;
+  nomeClinica?: string;
+  clinicaId?: number;
+}
+
 interface Clinica {
   id: number;
   nome: string;
-  cnpj: string;
-  telefone: string;
-  endereco: string;
 }
 
-export default function Home() {
+export default function VeterinariosPage() {
+  const [veterinarios, setVeterinarios] = useState<Veterinario[]>([]);
   const [clinicas, setClinicas] = useState<Clinica[]>([]);
-  const [form, setForm] = useState({ nome: '', cnpj: '', telefone: '', endereco: '' });
+  const [form, setForm] = useState({ nome: '', crmv: '', especialidade: '', clinicaId: '' });
   const [editandoId, setEditandoId] = useState<number | null>(null);
   const [erro, setErro] = useState('');
 
-  const buscarClinicas = useCallback(async () => {
+  const carregarDados = useCallback(async () => {
     try {
-      const data = await fetchApi<Clinica[]>('/clinicas');
-      setClinicas(data);
+      const [vetsData, clinicasData] = await Promise.all([
+        fetchApi<Veterinario[]>('/veterinarios'),
+        fetchApi<Clinica[]>('/clinicas')
+      ]);
+      setVeterinarios(vetsData);
+      setClinicas(clinicasData);
     } catch (err: unknown) {
-      setErro(err instanceof Error ? err.message : 'Erro ao carregar clínicas');
+      setErro(err instanceof Error ? err.message : 'Erro ao carregar dados');
     }
   }, []);
 
   useEffect(() => {
     let montado = true;
 
-    fetchApi<Clinica[]>('/clinicas')
-      .then((data) => {
-        if (montado) setClinicas(data);
+    Promise.all([
+      fetchApi<Veterinario[]>('/veterinarios'),
+      fetchApi<Clinica[]>('/clinicas')
+    ])
+      .then(([vetsData, clinicasData]) => {
+        if (montado) {
+          setVeterinarios(vetsData);
+          setClinicas(clinicasData);
+        }
       })
       .catch((err: unknown) => {
         if (montado) {
-          const mensagem = err instanceof Error ? err.message : 'Erro ao carregar clínicas';
-          setErro(mensagem);
+          setErro(err instanceof Error ? err.message : 'Erro ao carregar dados de veterinários');
         }
       });
 
     return () => {
       montado = false;
     };
-  }, []);
+  }, []);  
 
   const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     setErro('');
 
+    const payload = {
+      ...form,
+      clinicaId: Number(form.clinicaId)
+    };
+
     try {
       if (editandoId) {
-        await fetchApi<Clinica>(`/clinicas/${editandoId}`, {
+        await fetchApi<Veterinario>(`/veterinarios/${editandoId}`, {
           method: 'PUT',
-          body: JSON.stringify(form)
+          body: JSON.stringify(payload)
         });
       } else {
-        await fetchApi<Clinica>('/clinicas', {
+        await fetchApi<Veterinario>('/veterinarios', {
           method: 'POST',
-          body: JSON.stringify(form)
+          body: JSON.stringify(payload)
         });
       }
 
-      setForm({ nome: '', cnpj: '', telefone: '', endereco: '' });
+      setForm({ nome: '', crmv: '', especialidade: '', clinicaId: '' });
       setEditandoId(null);
-      await buscarClinicas();
+      await carregarDados();
     } catch (err: unknown) {
-      setErro(err instanceof Error ? err.message : 'Erro ao salvar clínica');
+      setErro(err instanceof Error ? err.message : 'Erro ao salvar veterinário');
     }
   };
 
-  const handleEditar = (clinica: Clinica) => {
-    setEditandoId(clinica.id);
+  const handleEditar = (v: Veterinario) => {
+    setEditandoId(v.id);
     setForm({
-      nome: clinica.nome,
-      cnpj: clinica.cnpj,
-      telefone: clinica.telefone || '',
-      endereco: clinica.endereco || ''
+      nome: v.nome,
+      crmv: v.crmv,
+      especialidade: v.especialidade || '',
+      clinicaId: v.clinicaId ? v.clinicaId.toString() : ''
     });
   };
 
   const handleExcluir = async (id: number) => {
-    if (!confirm("Tem certeza que deseja excluir esta clínica?")) return;
+    if (!confirm("Tem certeza que deseja excluir este veterinário?")) return;
     try {
-      await fetchApi(`/clinicas/${id}`, { method: 'DELETE' });
-      await buscarClinicas();
+      await fetchApi(`/veterinarios/${id}`, { method: 'DELETE' });
+      await carregarDados();
     } catch (err: unknown) {
-      setErro(err instanceof Error ? err.message : 'Erro ao excluir clínica');
+      setErro(err instanceof Error ? err.message : 'Erro ao excluir veterinário');
     }
   };
 
   const handleCancelarEdicao = () => {
     setEditandoId(null);
-    setForm({ nome: '', cnpj: '', telefone: '', endereco: '' });
+    setForm({ nome: '', crmv: '', especialidade: '', clinicaId: '' });
   };
 
   return (
     <main className="min-h-screen bg-slate-50 p-6 md:p-10 font-sans text-slate-800">
       <div className="max-w-5xl mx-auto">
         <header className="mb-8 border-b border-emerald-100 pb-4">
-          <h1 className="text-3xl font-bold text-emerald-800">Gerenciamento de Clínicas</h1>
-          <p className="text-sm text-slate-500 mt-1">Cadastre e gerencie as unidades cadastradas no sistema</p>
+          <h1 className="text-3xl font-bold text-emerald-800">Gerenciamento de Veterinários</h1>
+          <p className="text-sm text-slate-500 mt-1">Gerencie a equipe médica e especialidades</p>
         </header>
 
         {erro && (
@@ -111,10 +132,10 @@ export default function Home() {
 
         <form onSubmit={handleSubmit} className="bg-white p-6 rounded-xl shadow-sm border border-slate-200 mb-8 grid grid-cols-1 md:grid-cols-2 gap-4">
           <div>
-            <label className="block text-sm font-semibold text-slate-700 mb-1">Nome da Clínica</label>
+            <label className="block text-sm font-semibold text-slate-700 mb-1">Nome Completo</label>
             <input
               type="text"
-              placeholder="Ex: Clínica Vet Cuidar"
+              placeholder="Ex: Dra. Ana Silva"
               className="w-full p-2.5 border border-slate-300 rounded-lg bg-white text-slate-900 focus:ring-2 focus:ring-emerald-500 focus:outline-none"
               value={form.nome}
               onChange={(e) => setForm({ ...form, nome: e.target.value })}
@@ -123,37 +144,41 @@ export default function Home() {
           </div>
 
           <div>
-            <label className="block text-sm font-semibold text-slate-700 mb-1">CNPJ</label>
+            <label className="block text-sm font-semibold text-slate-700 mb-1">CRMV</label>
             <input
               type="text"
-              placeholder="00.000.000/0000-00"
+              placeholder="Ex: CRMV-PE 12345"
               className="w-full p-2.5 border border-slate-300 rounded-lg bg-white text-slate-900 focus:ring-2 focus:ring-emerald-500 focus:outline-none"
-              value={form.cnpj}
-              onChange={(e) => setForm({ ...form, cnpj: e.target.value })}
+              value={form.crmv}
+              onChange={(e) => setForm({ ...form, crmv: e.target.value })}
               required
             />
           </div>
 
           <div>
-            <label className="block text-sm font-semibold text-slate-700 mb-1">Telefone</label>
+            <label className="block text-sm font-semibold text-slate-700 mb-1">Especialidade</label>
             <input
               type="text"
-              placeholder="(87) 99999-9999"
+              placeholder="Ex: Cirurgia"
               className="w-full p-2.5 border border-slate-300 rounded-lg bg-white text-slate-900 focus:ring-2 focus:ring-emerald-500 focus:outline-none"
-              value={form.telefone}
-              onChange={(e) => setForm({ ...form, telefone: e.target.value })}
+              value={form.especialidade}
+              onChange={(e) => setForm({ ...form, especialidade: e.target.value })}
             />
           </div>
 
           <div>
-            <label className="block text-sm font-semibold text-slate-700 mb-1">Endereço</label>
-            <input
-              type="text"
-              placeholder="Rua, Número, Bairro"
+            <label className="block text-sm font-semibold text-slate-700 mb-1">Clínica</label>
+            <select
               className="w-full p-2.5 border border-slate-300 rounded-lg bg-white text-slate-900 focus:ring-2 focus:ring-emerald-500 focus:outline-none"
-              value={form.endereco}
-              onChange={(e) => setForm({ ...form, endereco: e.target.value })}
-            />
+              value={form.clinicaId}
+              onChange={(e) => setForm({ ...form, clinicaId: e.target.value })}
+              required
+            >
+              <option value="">Selecione uma clínica...</option>
+              {clinicas.map((c) => (
+                <option key={c.id} value={c.id}>{c.nome}</option>
+              ))}
+            </select>
           </div>
 
           <div className="md:col-span-2 flex gap-3 mt-2">
@@ -161,7 +186,7 @@ export default function Home() {
               type="submit"
               className="flex-1 bg-emerald-600 text-white py-2.5 rounded-lg font-semibold hover:bg-emerald-700 transition-colors shadow-sm"
             >
-              {editandoId ? "Salvar Alterações" : "Cadastrar Clínica"}
+              {editandoId ? "Salvar Alterações" : "Cadastrar Veterinário"}
             </button>
             {editandoId && (
               <button
@@ -175,37 +200,37 @@ export default function Home() {
           </div>
         </form>
 
-        <h2 className="text-xl font-bold mb-4 text-emerald-900">Clínicas Cadastradas</h2>
+        <h2 className="text-xl font-bold mb-4 text-emerald-900">Veterinários Cadastrados</h2>
         <div className="overflow-x-auto rounded-xl border border-slate-200 bg-white shadow-sm">
           <table className="w-full text-left border-collapse">
             <thead>
               <tr className="bg-emerald-50 text-emerald-900 font-semibold border-b border-slate-200 text-sm">
                 <th className="p-3.5">ID</th>
                 <th className="p-3.5">Nome</th>
-                <th className="p-3.5">CNPJ</th>
-                <th className="p-3.5">Telefone</th>
-                <th className="p-3.5">Endereço</th>
+                <th className="p-3.5">CRMV</th>
+                <th className="p-3.5">Especialidade</th>
+                <th className="p-3.5">Clínica</th>
                 <th className="p-3.5 text-center">Ações</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100 text-sm">
-              {clinicas.map((c) => (
-                <tr key={c.id} className="hover:bg-slate-50 transition-colors">
-                  <td className="p-3.5 text-slate-500 font-medium">{c.id}</td>
-                  <td className="p-3.5 text-slate-900 font-semibold">{c.nome}</td>
-                  <td className="p-3.5 text-slate-700">{c.cnpj}</td>
-                  <td className="p-3.5 text-slate-700">{c.telefone || '-'}</td>
-                  <td className="p-3.5 text-slate-700">{c.endereco || '-'}</td>
+              {veterinarios.map((v) => (
+                <tr key={v.id} className="hover:bg-slate-50 transition-colors">
+                  <td className="p-3.5 text-slate-500 font-medium">{v.id}</td>
+                  <td className="p-3.5 text-slate-900 font-semibold">{v.nome}</td>
+                  <td className="p-3.5 text-slate-700">{v.crmv}</td>
+                  <td className="p-3.5 text-slate-700">{v.especialidade || '-'}</td>
+                  <td className="p-3.5 text-slate-700">{v.nomeClinica || '-'}</td>
                   <td className="p-3.5 text-center">
                     <div className="flex justify-center gap-2">
                       <button
-                        onClick={() => handleEditar(c)}
+                        onClick={() => handleEditar(v)}
                         className="px-3 py-1 bg-emerald-100 text-emerald-700 rounded hover:bg-emerald-200 font-medium transition-colors"
                       >
                         Editar
                       </button>
                       <button
-                        onClick={() => handleExcluir(c.id)}
+                        onClick={() => handleExcluir(v.id)}
                         className="px-3 py-1 bg-red-100 text-red-700 rounded hover:bg-red-200 font-medium transition-colors"
                       >
                         Excluir
