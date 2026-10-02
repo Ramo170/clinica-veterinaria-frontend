@@ -5,6 +5,7 @@ while (cleanUrl.endsWith('/')) {
   cleanUrl = cleanUrl.slice(0, -1);
 }
 
+
 const BASE_URL = cleanUrl;
 
 export async function fetchApi<T>(endpoint: string, options?: RequestInit): Promise<T> {
