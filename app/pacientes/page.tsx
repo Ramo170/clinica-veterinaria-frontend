@@ -42,7 +42,7 @@ export default function PacientesPage() {
         let montado = true;
 
         Promise.all([
-            fetchApi<Paciente[]>('/paciente'),
+            fetchApi<Paciente[]>('/pacientes'),
             fetchApi<Tutor[]>('/tutores')
         ])
             .then(([pacientesData, tutoresData]) =>{
